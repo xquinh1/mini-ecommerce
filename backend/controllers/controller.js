@@ -29,6 +29,18 @@ class Controller {
         }
     }
 
+    getAllProduct() {
+        return this.service.getAllProduct()
+    }
+
+    addToCart(userId, productId, quantity) {
+        return this.service.addToCart(userId, productId, quantity)
+    }
+
+    async getCart(userId) {
+        return await this.service.getCart(userId)
+    }
+
 }
 
 module.exports = { Controller }

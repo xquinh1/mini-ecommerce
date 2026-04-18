@@ -1,8 +1,9 @@
 const bcrypt = require("bcrypt")
 
 class Service {
-    constructor(userRepository) {
+    constructor(userRepository, productRepository) {
         this.userRepository = userRepository 
+        this.productRepository = productRepository
     }
 
     async createUser(user) {
@@ -20,11 +21,11 @@ class Service {
     }
 
     async getAll() {
-        return this.userRepository.findAll()
+        return await this.userRepository.findAll()
     }
 
     async getUserById(userId) {
-        return this.userRepository.findById(userId)
+        return await this.userRepository.findById(userId)
     }
 
     async login(email, password) {
@@ -43,12 +44,36 @@ class Service {
         const jwt = require("jsonwebtoken")
 
         const token = jwt.sign(
-            { userId: user.id, role: user.role },
+            { id: user.id, role: user.role },
             "secret_key",
             { expiresIn: "1h" }
         )
         
         return token
+    }
+
+    getAllProduct() {
+        return this.productRepository.getAllProduct()
+    }
+
+    async addToCart(userId, productId, quantity) {
+        let cart = await this.productRepository.getCartByUserId(userId)
+
+        if (!cart) {
+            cart = await this.productRepository.createCart(userId)
+        }
+
+        const item = await this.productRepository.getCartItem(cart.id, productId)
+
+        if (item) {
+            await this.productRepository.updateQuantity(item.id, quantity)
+        } else {
+            await this.productRepository.addItem(cart.id, productId, quantity)
+        }
+    }
+
+    async getCart(userId) {
+        return await this.productRepository.getCartItems(userId)
     }
 }
 
