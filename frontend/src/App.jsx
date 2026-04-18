@@ -2,6 +2,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 
 import Login from "./components/login";
 import Signup from "./components/signup";
+import Products from "./components/products";
+import Cart from "./components/carts";
+
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem("token");
@@ -17,7 +20,8 @@ function App() {
       <Routes>
         <Route path="/signup" element={<Signup />} />
         <Route path="/login" element={<Login />} />
-        
+        <Route path="/products" element={<Products />} />
+        <Route path="/cart" element={<Cart />} />
       </Routes>
     </Router>
   );

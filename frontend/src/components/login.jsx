@@ -1,11 +1,14 @@
 import { useState } from "react"
 import { Eye } from "lucide-react"
+import { useNavigate } from "react-router-dom";
+
 
 function Login() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const navigate = useNavigate()
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -23,7 +26,7 @@ function Login() {
       if (!res.ok) throw new Error(data.error || "Login failed")
 
       localStorage.setItem("token", data.token)
-      window.location.href = "/"
+      navigate("/products")
     } catch (err) {
       setError(err.message)
     } finally {
