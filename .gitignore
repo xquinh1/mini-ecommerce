@@ -8,7 +8,7 @@ backend/node_modules/
 .env.local
 .env.production
 frontend/.env
-frontend/.env.local
+frontend/.env.production
 backend/.env
 
 # Build output
@@ -22,5 +22,3 @@ npm-debug.log*
 # OS files
 .DS_Store
 Thumbs.db
-
-backend/database/

@@ -106,7 +106,7 @@ const Cart = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:3000/cart", {
+      const res = await fetch("${import.meta.env.VITE_API_URL}/cart", {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -136,7 +136,7 @@ const Cart = () => {
     const token = localStorage.getItem("token");
     try {
       // PUT /cart/item/:cart_item_id { quantity }
-      const res = await fetch(`http://localhost:3000/cart/update`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/cart/update`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -163,7 +163,7 @@ const Cart = () => {
     setItemLoadingState(cart_item_id, true);
     const token = localStorage.getItem("token");
     try {
-      const res = await fetch(`http://localhost:3000/cart/item/${cart_item_id}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/cart/item/${cart_item_id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -183,7 +183,7 @@ const Cart = () => {
 
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:3000/checkout", {
+      const res = await fetch("${import.meta.env.VITE_API_URL}/checkout", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

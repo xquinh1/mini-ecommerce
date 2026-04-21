@@ -113,7 +113,7 @@ const Products = () => {
   useEffect(() => {
     setLoading(true);
     setError("");
-    fetch("http://localhost:3000/products")
+    fetch("${import.meta.env.VITE_API_URL}/products")
       .then((res) => {
         if (!res.ok) throw new Error("Failed to fetch products");
         return res.json();
@@ -126,7 +126,7 @@ const Products = () => {
   const fetchCart = async () => {
     const token = localStorage.getItem("token")
   
-    const res = await fetch("http://localhost:3000/cart", {
+    const res = await fetch("${import.meta.env.VITE_API_URL}/cart", {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`
@@ -150,7 +150,7 @@ const Products = () => {
     setAddToCartLoading(true);
 
     try {
-      const res = await fetch("http://localhost:3000/cart/add", {
+      const res = await fetch("${import.meta.env.VITE_API_URL}/cart/add", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
