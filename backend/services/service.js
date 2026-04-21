@@ -75,6 +75,41 @@ class Service {
     async getCart(userId) {
         return await this.productRepository.getCartItems(userId)
     }
+
+    async updateCartItemQuantity(cartItemId, quantity) {
+        if (quantity <= 0) {
+            return await this.productRepository.deleteItem(cartItemId)
+        }
+        return await this.productRepository.updateCartItemQuantity(cartItemId, quantity)
+    }
+
+    async deleteItem(cartItemId) {
+        return await this.productRepository.deleteItem(cartItemId)
+    }
+
+    async createOrder(userId) {
+        const cartItems = await this.productRepository.getCartItems(userId)
+
+        if (!cartItems.length) {
+            throw new Error("Cart is empty")
+        }
+
+        const total = cartItems.reduce(
+            (sum, item) => sum + item.price * item.quantity, 0
+        )
+
+        const order = await this.productRepository.createOrder(userId, total) 
+
+        for (const item of cartItems) {
+            await this.productRepository.createOrderItem(
+                order.id, item.product_id, item.quantity, item.price
+            )
+        }
+
+        await this.productRepository.clearCart(userId)
+
+        return order
+    }
 }
 
 module.exports = { Service }

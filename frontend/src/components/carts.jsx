@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 
-// Card icons with selectable buttons (mock selection state UI)
+// Card icons with selectable buttons
 const CardIcons = ({ selected, onSelect }) => (
   <div className="flex space-x-3 mb-5">
     <button
@@ -41,10 +41,13 @@ const CardIcons = ({ selected, onSelect }) => (
   </div>
 );
 
-// Delete icon (UI only, no functionality yet)
+// Delete icon (functional for item removal now)
 const DeleteIcon = (props) => (
   <svg
-    className="w-5 h-5 text-gray-400 hover:text-red-500 transition cursor-pointer"
+    className={
+      "w-5 h-5 text-gray-400 hover:text-red-500 transition cursor-pointer " +
+      (props.disabled ? "opacity-50 cursor-not-allowed" : "")
+    }
     fill="none"
     stroke="currentColor"
     strokeWidth={2}
@@ -55,11 +58,37 @@ const DeleteIcon = (props) => (
   </svg>
 );
 
+const MinusIcon = ({ ...props }) => (
+  <svg
+    viewBox="0 0 20 20"
+    fill="currentColor"
+    className="w-5 h-5"
+    {...props}
+  >
+    <rect x="4.5" y="9" width="11" height="2" rx="1" />
+  </svg>
+);
+
+const PlusIcon = ({ ...props }) => (
+  <svg
+    viewBox="0 0 20 20"
+    fill="currentColor"
+    className="w-5 h-5"
+    {...props}
+  >
+    <rect x="9" y="4.5" width="2" height="11" rx="1" />
+    <rect x="4.5" y="9" width="11" height="2" rx="1" />
+  </svg>
+);
+
 const SHIPPING = 4.99; // Fixed shipping cost
 
 const Cart = () => {
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Quantity/editing/loading state for individual cart items
+  const [itemLoading, setItemLoading] = useState({}); // { cart_item_id: true/false }
 
   // Payment fields (UI only)
   const [cardType, setCardType] = useState("visa");
@@ -68,31 +97,137 @@ const Cart = () => {
   const [expDate, setExpDate] = useState("");
   const [cvv, setCvv] = useState("");
 
+  // Checkout state management
+  const [loadingCheckout, setLoadingCheckout] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  // Fetch cart on mount & after updates
+  const fetchCart = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("http://localhost:3000/cart", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setCart(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.log(err);
+      setCart([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchCart = async () => {
-      setLoading(true);
-      try {
-        const token = localStorage.getItem("token");
-        const res = await fetch("http://localhost:3000/cart", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-        setCart(Array.isArray(data) ? data : []);
-      } catch (err) {
-        console.log(err);
-        setCart([]);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchCart();
+    // eslint-disable-next-line
   }, []);
 
+  // Helper to set the loading state for a cart item
+  const setItemLoadingState = (id, value) => {
+    setItemLoading((prev) => ({ ...prev, [id]: value }));
+  };
+
+  // Update quantity - PUT to backend at /cart/item/:cart_item_id
+  const updateCartItemQuantity = async (cart_item_id, newQuantity) => {
+    if (newQuantity < 0) return;
+    setItemLoadingState(cart_item_id, true);
+    const token = localStorage.getItem("token");
+    try {
+      // PUT /cart/item/:cart_item_id { quantity }
+      const res = await fetch(`http://localhost:3000/cart/update`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ 
+          quantity: newQuantity, 
+          cart_item_id: cart_item_id 
+        }),
+      });
+      if (!res.ok) {
+        throw new Error("Failed to update cart");
+      }
+      await fetchCart();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setItemLoadingState(cart_item_id, false);
+    }
+  };
+
+  // Remove cart item - DELETE to backend at /cart/item:id
+  const removeCartItem = async (cart_item_id) => {
+    setItemLoadingState(cart_item_id, true);
+    const token = localStorage.getItem("token");
+    try {
+      const res = await fetch(`http://localhost:3000/cart/item/${cart_item_id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error("Failed to remove item");
+      await fetchCart();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setItemLoadingState(cart_item_id, false);
+    }
+  };
+
+  // Handle checkout click
+  const handleCheckout = async () => {
+    if (loadingCheckout || cart.length === 0 || loading) return;
+    setLoadingCheckout(true);
+
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("http://localhost:3000/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({}),
+      });
+
+      if (!res.ok) {
+        throw new Error("Checkout failed");
+      }
+
+      setShowSuccess(true);
+
+      setTimeout(() => {
+        window.location.href = "/products";
+      }, 2000);
+    } catch (err) {
+      setLoadingCheckout(false);
+      window.alert("Checkout failed");
+    }
+  };
+
+  // Get subtotal and total
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const total = subtotal + (cart.length ? SHIPPING : 0);
 
   return (
     <div className="min-h-screen bg-gray-100 py-8">
+      {/* Success Modal */}
+      {showSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-2xl px-8 py-10 flex flex-col items-center max-w-sm w-full">
+            <div className="text-green-500 mb-3 text-5xl">🎉</div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2 text-center">
+              Payment Successful
+            </h2>
+            <p className="text-gray-500 text-center mb-1">
+              Redirecting to products...
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row gap-6 items-start">
           {/* LEFT Column - Cart */}
@@ -106,7 +241,26 @@ const Cart = () => {
                 : `You have ${cart.length} item${cart.length > 1 ? "s" : ""} in your cart`}
             </p>
             <div className="flex flex-col gap-5 flex-1">
-              {loading ? null : cart.length === 0 ? (
+              {loading ? (
+                <div className="py-20 flex justify-center items-center">
+                  <svg className="animate-spin h-8 w-8 text-blue-400" viewBox="0 0 24 24">
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      fill="none"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v8z"
+                    />
+                  </svg>
+                </div>
+              ) : cart.length === 0 ? (
                 <div className="py-16 flex items-center justify-center text-gray-400 text-lg">
                   <span>🛒</span> &nbsp; Your cart is empty.
                 </div>
@@ -114,25 +268,101 @@ const Cart = () => {
                 cart.map((item) => (
                   <div
                     key={item.cart_item_id}
-                    className="bg-white rounded-lg shadow flex items-center gap-4 px-4 py-4"
+                    className="bg-white rounded-lg shadow flex items-center gap-4 px-4 py-4 transition-all duration-200 border border-transparent hover:border-blue-200"
                   >
                     <img
                       src={item.image_url}
                       alt={item.name}
                       className="w-20 h-20 object-cover rounded-md border bg-gray-100"
                     />
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <div className="font-medium text-gray-900 line-clamp-2">{item.name}</div>
                       <div className="text-sm text-gray-400 mt-1">
-                        Quantity: <span className="text-gray-700">{item.quantity}</span>
+                        {/* Quantity controls */}
+                        <div className="flex items-center gap-3 mt-2">
+                          <button
+                            disabled={itemLoading[item.cart_item_id] || item.quantity <= 0}
+                            onClick={() => {
+                              const nextQty = item.quantity - 1;
+                              if (nextQty < 1) {
+                                // Remove the item if goes below 1
+                                removeCartItem(item.cart_item_id);
+                              } else {
+                                updateCartItemQuantity(item.cart_item_id, nextQty);
+                              }
+                            }}
+                            className={`
+                              flex items-center justify-center w-8 h-8 rounded-md border border-gray-300
+                              font-bold text-xl bg-gray-50 
+                              transition hover:border-blue-400 hover:bg-blue-50
+                              disabled:opacity-50 disabled:cursor-not-allowed
+                              duration-200
+                            `}
+                            aria-label="Decrease quantity"
+                          >
+                            <MinusIcon />
+                          </button>
+                          <span
+                            className={`
+                              min-w-[32px] text-center font-semibold text-gray-800 
+                              transition-all text-base select-none
+                              ${itemLoading[item.cart_item_id] ? "opacity-60" : ""}
+                            `}
+                          >
+                            {itemLoading[item.cart_item_id] ? (
+                              <svg className="inline-block h-5 w-5 text-blue-400 animate-spin" viewBox="0 0 24 24">
+                                <circle
+                                  className="opacity-25"
+                                  cx="12"
+                                  cy="12"
+                                  r="10"
+                                  stroke="currentColor"
+                                  strokeWidth="4"
+                                  fill="none"
+                                />
+                                <path
+                                  className="opacity-75"
+                                  fill="currentColor"
+                                  d="M4 12a8 8 0 018-8v8z"
+                                />
+                              </svg>
+                            ) : item.quantity}
+                          </span>
+                          <button
+                            disabled={itemLoading[item.cart_item_id]}
+                            onClick={() =>
+                              updateCartItemQuantity(item.cart_item_id, item.quantity + 1)
+                            }
+                            className={`
+                              flex items-center justify-center w-8 h-8 rounded-md border border-gray-300
+                              font-bold text-xl bg-gray-50
+                              transition hover:border-blue-400 hover:bg-blue-50
+                              disabled:opacity-50 disabled:cursor-not-allowed
+                              duration-200
+                            `}
+                            aria-label="Increase quantity"
+                          >
+                            <PlusIcon />
+                          </button>
+                        </div>
                       </div>
                     </div>
                     <div className="flex flex-col items-end">
-                      <div className="font-semibold text-lg text-gray-800">
+                      <div className="font-semibold text-lg text-gray-800 transition-all">
                         ${(item.price * item.quantity).toFixed(2)}
                       </div>
-                      <button title="Remove from cart" className="mt-2">
-                        <DeleteIcon />
+                      <button
+                        title="Remove from cart"
+                        disabled={itemLoading[item.cart_item_id]}
+                        onClick={() => removeCartItem(item.cart_item_id)}
+                        className="
+                          mt-2 rounded-full p-1
+                          transition hover:bg-red-100
+                          disabled:opacity-50 disabled:cursor-not-allowed
+                        "
+                        aria-label="Remove item"
+                      >
+                        <DeleteIcon disabled={itemLoading[item.cart_item_id]} />
                       </button>
                     </div>
                   </div>
@@ -255,13 +485,40 @@ const Cart = () => {
                 </div>
                 {/* Checkout Button */}
                 <button
-                  disabled={cart.length === 0 || loading}
+                  disabled={cart.length === 0 || loading || loadingCheckout}
                   className={`mt-6 w-full py-3 font-bold rounded-xl text-lg shadow-lg
                     bg-gradient-to-r from-green-400 to-teal-400
                     transition hover:opacity-90 
-                    disabled:opacity-60 disabled:cursor-not-allowed`}
+                    disabled:opacity-60 disabled:cursor-not-allowed
+                    flex items-center justify-center
+                  `}
+                  onClick={handleCheckout}
                 >
-                  Checkout &nbsp; ${total.toFixed(2)}
+                  {loadingCheckout ? (
+                    <>
+                      <svg className="animate-spin inline-block h-5 w-5 mr-2 text-white/80" viewBox="0 0 24 24">
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                          fill="none"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8v8z"
+                        />
+                      </svg>
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      Checkout&nbsp;${total.toFixed(2)}
+                    </>
+                  )}
                 </button>
               </div>
             </div>

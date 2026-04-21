@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-
 
 // Placeholder image for broken links
 const PLACEHOLDER =
@@ -31,6 +30,52 @@ const CATEGORIES = [
   "Sports",
 ];
 
+// Modal (overlay) component
+function Modal({ open, onClose, children, className = "", backdropCls = "" }) {
+  // trap focus
+  const modalRef = useRef(null);
+  useEffect(() => {
+    if (open && modalRef.current) {
+      modalRef.current.focus();
+    }
+  }, [open]);
+  if (!open) return null;
+  return (
+    <div
+      className={
+        "fixed z-[100] inset-0 flex items-center justify-center bg-black/40 transition-all duration-200 " +
+        backdropCls
+      }
+      role="dialog"
+      aria-modal="true"
+      tabIndex={-1}
+      onClick={onClose}
+    >
+      <div
+        className={
+          "relative bg-white rounded-2xl shadow-xl p-6 w-[95%] max-w-sm animate-fadeIn " +
+          className
+        }
+        style={{ animation: "fadeIn .3s" }}
+        tabIndex={0}
+        ref={modalRef}
+        onClick={e => e.stopPropagation()}
+      >
+        {children}
+      </div>
+      <style>{`
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(30px);} to { opacity: 1; transform: none; } }
+        .animate-fadeIn { animation: fadeIn .25s; }
+        .animate-slideInUp { animation: slideInUp .3s; }
+        @keyframes slideInUp {
+          from { opacity: 0; transform: translateY(40px) scale(.96);}
+          to { opacity: 1; transform: none;}
+        }
+      `}</style>
+    </div>
+  );
+}
+
 // --- Countdown Timer (fake) ---
 function useFakeCountdown() {
   const [time, setTime] = useState(30 * 60);
@@ -54,6 +99,13 @@ const Products = () => {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false)
   const [cart, setCart] = useState([])
+
+  // Popup state
+  const [showLoginPopup, setShowLoginPopup] = useState(false);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [successProductName, setSuccessProductName] = useState("");
+  const [addToCartLoading, setAddToCartLoading] = useState(false);
+
   const navigate = useNavigate()
 
   const countdown = useFakeCountdown();
@@ -86,9 +138,17 @@ const Products = () => {
     navigate("/cart")
   }
 
-  const addToCart = async (productId) => {
+  // Add To Cart UX with login check & toasts
+  const addToCart = async (productId, productName) => {
+
     const token = localStorage.getItem("token")
-  
+    if (!token) {
+      // Not logged in: show login required popup
+      setShowLoginPopup(true);
+      return;
+    }
+    setAddToCartLoading(true);
+
     try {
       const res = await fetch("http://localhost:3000/cart/add", {
         method: "POST",
@@ -100,13 +160,27 @@ const Products = () => {
           product_id: productId,
           quantity: 1
         })
-      })
-  
-      const data = await res.json()
-  
-      alert("Added to cart ✅")
+      });
+
+      if (!res.ok) {
+        setShowLoginPopup(true)
+        return
+      }
+
+      const data = await res.json();
+      // Optionally, you might want to check for errors here as well
+      setSuccessProductName(productName || "");
+      setShowSuccessPopup(true);
+
+      setTimeout(() => {
+        setShowSuccessPopup(false);
+        setSuccessProductName("");
+      }, 500);
     } catch (err) {
+      // Could optionally show an error popup here
       console.log(err)
+    } finally {
+      setAddToCartLoading(false);
     }
   }
 
@@ -122,8 +196,65 @@ const Products = () => {
     return matchesCategory && matchesSearch;
   });
 
+  // --- LOGIN MODAL JSX ---
+  function LoginPopup() {
+    return (
+      <Modal open={showLoginPopup} onClose={() => setShowLoginPopup(false)}>
+        <div className="flex flex-col space-y-4 items-center text-center animate-slideInUp">
+          {/* Icon */}
+          <svg className="w-12 h-12 text-blue-500 mb-2" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
+            <circle cx="12" cy="11" r="5.5" />
+            <path d="M5.5 21a9 9 0 0 1 13 0" strokeLinecap="round" />
+          </svg>
+          <div className="text-xl font-semibold text-gray-900">Login required</div>
+          <div className="text-gray-600 text-sm px-2">Please log in to add items to your cart</div>
+          <button
+            className="w-full mt-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2 px-4 font-semibold shadow transition"
+            onClick={() => {
+              setShowLoginPopup(false);
+              navigate("/login");
+            }}
+          >
+            Go to Login
+          </button>
+        </div>
+      </Modal>
+    );
+  }
+
+  // --- SUCCESS TOAST JSX ---
+  function SuccessToast() {
+    return (
+      <Modal
+        open={showSuccessPopup}
+        onClose={() => setShowSuccessPopup(false)}
+        className="p-3 max-w-xs"
+        backdropCls="pointer-events-none"
+      >
+        <div className="flex flex-col items-center gap-2 animate-fadeIn select-none">
+          <div className="rounded-full bg-green-100 p-3 mb-1 shadow-sm">
+            {/* Checkmark Icon */}
+            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
+              <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <div className="text-green-700 font-semibold text-lg flex items-center gap-1">
+            Added to cart <span className="text-lg">✅</span>
+          </div>
+          {successProductName && (
+            <div className="text-sm text-gray-700">{successProductName}</div>
+          )}
+        </div>
+      </Modal>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
+      {/* Popups */}
+      <LoginPopup />
+      <SuccessToast />
+
       {/* NAVBAR */}
       <nav className="bg-blue-600 py-3 px-4 flex items-center justify-between shadow">
         <div className="text-2xl font-bold text-white tracking-wide">MyShop</div>
@@ -184,7 +315,7 @@ const Products = () => {
               )}
 
             </div>
-)}
+          )}
           <button aria-label="User account">
             <UserIcon />
           </button>
@@ -291,12 +422,20 @@ const Products = () => {
                     Stock: {product.stock}
                   </div>
                   <button
-                    className="mt-auto w-full bg-blue-600 hover:bg-blue-700 transition text-white font-medium py-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-                    disabled={product.stock === 0}
-                    onClick={() => addToCart(product.id)}
+                    className={`
+                      mt-auto w-full bg-blue-600 hover:bg-blue-700 transition text-white font-medium py-2 rounded-md shadow-sm 
+                      focus:outline-none focus:ring-2 focus:ring-blue-300
+                      ${addToCartLoading ? "opacity-70 cursor-not-allowed" : ""}
+                    `}
+                    disabled={product.stock === 0 || addToCartLoading}
+                    onClick={() => addToCart(product.id, product.name)}
                     style={{ opacity: product.stock === 0 ? 0.5 : 1, cursor: product.stock === 0 ? "not-allowed" : "pointer" }}
                   >
-                    {product.stock === 0 ? "Out of Stock" : "Add to cart"}
+                    {product.stock === 0
+                      ? "Out of Stock"
+                      : addToCartLoading
+                        ? "Adding..."
+                        : "Add to cart"}
                   </button>
                 </div>
               </div>
