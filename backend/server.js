@@ -22,7 +22,9 @@ function initializeDependencies() {
 const controller = initializeDependencies()
 
 //Cors
-server.use(cors())
+server.use(cors({
+    origin: "https://mini-ecommerce-kappa-ten.vercel.app/"
+  }))
 
 // Routes
 server.use("/", createRoutes(controller))
