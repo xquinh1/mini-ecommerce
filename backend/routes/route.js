@@ -58,5 +58,40 @@ module.exports = ( controller ) => {
         }
     })
 
+    router.put("/cart/update", authMiddleware, async (req, res) => {
+        try {
+            const { cart_item_id, quantity } = req.body
+
+            const result = await controller.updateCartItemQuantity(cart_item_id, quantity)
+
+            res.status(201).json(result)
+        } catch (err) {
+            res.status(400).json({ error: err.message })
+        }
+    })
+
+    router.delete("/cart/item/:id", authMiddleware, async (req, res) => {
+        try {
+            const cartItemId = req.params.id
+
+            const data = await controller.deleteItem(cartItemId)
+            res.status(201).json(data)
+        } catch (err) {
+            res.status(400).json({ error: err.message })
+        }
+    })
+
+    router.post("/checkout", authMiddleware, async (req, res) => {
+        try {
+            const userId = req.user.id
+
+            const order = await controller.createOrder(userId)
+
+            res.status(201).json(order)
+        } catch (err) {
+            res.status(400).json({ error: err.message })
+        }
+    })
+
     return router
 }

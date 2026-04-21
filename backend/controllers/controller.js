@@ -41,6 +41,18 @@ class Controller {
         return await this.service.getCart(userId)
     }
 
+    async updateCartItemQuantity(cartItemId, quantity) {
+        return await this.service.updateCartItemQuantity(cartItemId, quantity)
+    }
+
+    async deleteItem(cartItemId) {
+        return await this.service.deleteItem(cartItemId)
+    }
+
+    async createOrder(userId) {
+        return await this.service.createOrder(userId)
+    }
+
 }
 
 module.exports = { Controller }

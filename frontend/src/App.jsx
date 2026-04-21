@@ -9,7 +9,7 @@ import Cart from "./components/carts";
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem("token");
   if (!token) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/products" replace />;
   }
   return children;
 }
@@ -21,7 +21,10 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/login" element={<Login />} />
         <Route path="/products" element={<Products />} />
-        <Route path="/cart" element={<Cart />} />
+        <Route path="/cart" element={
+          <ProtectedRoute>
+            <Cart />  
+          </ProtectedRoute>} />
       </Routes>
     </Router>
   );
