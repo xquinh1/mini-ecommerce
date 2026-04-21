@@ -106,7 +106,7 @@ const Cart = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("${import.meta.env.VITE_API_URL}/cart", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/cart`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -183,7 +183,7 @@ const Cart = () => {
 
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("${import.meta.env.VITE_API_URL}/checkout", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/checkout`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
