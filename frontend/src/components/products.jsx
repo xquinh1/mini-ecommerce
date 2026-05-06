@@ -125,6 +125,11 @@ const Products = () => {
 
   const fetchCart = async () => {
     const token = localStorage.getItem("token")
+
+    if (!token) {
+      setShowLoginPopup(true)
+      return
+    }
   
     const res = await fetch(`${import.meta.env.VITE_API_URL}/cart`, {
       method: "GET",
@@ -132,6 +137,17 @@ const Products = () => {
         Authorization: `Bearer ${token}`
       }
     })
+
+    if (res.status === 401 || res.status === 403) {
+      localStorage.removeItem("token")
+      setShowLoginPopup(true)
+      return
+    }
+
+    if (!res.ok) {
+      setError("Failed to load cart")
+      return
+    }
   
     const data = await res.json()
     setCart(data)
@@ -163,6 +179,9 @@ const Products = () => {
       });
 
       if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          localStorage.removeItem("token")
+        }
         setShowLoginPopup(true)
         return
       }
@@ -212,7 +231,7 @@ const Products = () => {
             className="w-full mt-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2 px-4 font-semibold shadow transition"
             onClick={() => {
               setShowLoginPopup(false);
-              navigate("/login");
+              navigate(`/login?redirect=${encodeURIComponent("/")}`);
             }}
           >
             Go to Login

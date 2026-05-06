@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Eye } from "lucide-react"
-import { useNavigate } from "react-router-dom";
+import { GoogleLogin } from "@react-oauth/google"
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 
 function Login() {
@@ -9,6 +10,8 @@ function Login() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const redirectTo = searchParams.get("redirect") || "/"
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -26,7 +29,30 @@ function Login() {
       if (!res.ok) throw new Error(data.error || "Login failed")
 
       localStorage.setItem("token", data.token)
-      navigate("/products")
+      navigate(redirectTo)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGoogleLogin = async ({ credential }) => {
+    setLoading(true)
+    setError("")
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/google`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential })
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Google login failed")
+
+      localStorage.setItem("token", data.token)
+      navigate(redirectTo)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -126,17 +152,21 @@ function Login() {
 
           {/* social */}
           <div className="flex gap-4 mt-4">
-            <button className="flex-1 h-10 border rounded-md flex items-center justify-center overflow-hidden hover:bg-gray-50">
-                <img src="https://cdn-icons-png.flaticon.com/512/124/124010.png" className="max-w-full max-h-full object-contain" />
-            </button>
+            <div className="flex-1 min-w-0 flex items-center justify-center">
+              <GoogleLogin
+                onSuccess={handleGoogleLogin}
+                onError={() => setError("Google login failed")}
+                width="220"
+              />
+            </div>
 
-            <button className="flex-1 h-10 border rounded-md flex items-center justify-center overflow-hidden hover:bg-gray-50">
+            {/* <button className="flex-1 h-10 border rounded-md flex items-center justify-center overflow-hidden hover:bg-gray-50">
               <img src="https://cdn-icons-png.flaticon.com/512/2991/2991148.png" className="max-w-full max-h-full object-contain" />
-            </button>
+            </button> */}
 
-            <button className="flex-1 h-10 border rounded-md flex items-center justify-center overflow-hidden hover:bg-gray-50">
+            {/* <button className="flex-1 h-10 border rounded-md flex items-center justify-center overflow-hidden hover:bg-gray-50">
               <img src="https://cdn-icons-png.flaticon.com/512/0/747.png" className="max-w-full max-h-full object-contain" />
-            </button>
+            </button> */}
           </div>
 
         </div>

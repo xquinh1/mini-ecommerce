@@ -1,3 +1,5 @@
+require("dotenv").config()
+
 const cors = require("cors")
 const express = require("express");
 const server = express();
@@ -22,8 +24,20 @@ function initializeDependencies() {
 const controller = initializeDependencies()
 
 //Cors
+const allowedOrigins = [
+    "https://mini-ecommerce-kappa-ten.vercel.app",
+    "http://localhost:5173",
+    "http://localhost:3000",
+]
+
 server.use(cors({
-    origin: "https://mini-ecommerce-kappa-ten.vercel.app"
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            return callback(null, true)
+        }
+
+        return callback(new Error("Not allowed by CORS"))
+    }
   }))
 
 // Routes

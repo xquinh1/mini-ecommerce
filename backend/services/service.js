@@ -1,4 +1,8 @@
 const bcrypt = require("bcrypt")
+const jwt = require("jsonwebtoken")
+const { OAuth2Client } = require("google-auth-library")
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
 
 class Service {
     constructor(userRepository, productRepository) {
@@ -41,14 +45,58 @@ class Service {
             throw new Error("Wrong password")
         }
 
-        const jwt = require("jsonwebtoken")
-
         const token = jwt.sign(
             { id: user.id, role: user.role },
-            "secret_key",
+            process.env.JWT_SECRET,
             { expiresIn: "1h" }
         )
         
+        return token
+    }
+
+    async loginWithGoogle(credential) {
+        if (!credential) {
+            throw new Error("Google credential is required")
+        }
+
+        if (!process.env.GOOGLE_CLIENT_ID) {
+            throw new Error("GOOGLE_CLIENT_ID is not configured")
+        }
+
+        const ticket = await googleClient.verifyIdToken({
+            idToken: credential,
+            audience: process.env.GOOGLE_CLIENT_ID
+        })
+
+        const payload = ticket.getPayload()
+
+        if (!payload.email || !payload.email_verified) {
+            throw new Error("Google email is not verified")
+        }
+
+        const googleUser = {
+            email: payload.email,
+            provider: "google",
+            provider_id: payload.sub,
+            name: payload.name,
+            avatar_url: payload.picture,
+            role: "user"
+        }
+
+        let user = await this.userRepository.findByEmail(googleUser.email)
+
+        if (!user) {
+            user = await this.userRepository.saveSocialUser(googleUser)
+        } else if (user.provider !== "google" || user.provider_id !== googleUser.provider_id) {
+            user = await this.userRepository.updateSocialUser(user.id, googleUser)
+        }
+
+        const token = jwt.sign(
+            { id: user.id, role: user.role },
+            process.env.JWT_SECRET,
+            { expiresIn: "1h" }
+        )
+
         return token
     }
 

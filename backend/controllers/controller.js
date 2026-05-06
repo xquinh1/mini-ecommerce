@@ -29,6 +29,16 @@ class Controller {
         }
     }
 
+    async loginWithGoogle(req, res) {
+        try {
+            const { credential } = req.body
+            const token = await this.service.loginWithGoogle(credential)
+            res.json({ token })
+        } catch (err) {
+            res.status(400).json({ error: err.message })
+        }
+    }
+
     getAllProduct() {
         return this.service.getAllProduct()
     }

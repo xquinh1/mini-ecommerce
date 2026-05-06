@@ -24,6 +24,10 @@ module.exports = ( controller ) => {
         await controller.login(req, res)       
     })
 
+    router.post("/auth/google", async (req, res) => {
+        await controller.loginWithGoogle(req, res)
+    })
+
     router.get("/products", async (req, res) => {
         try {
             const products = await controller.getAllProduct(req, res)
